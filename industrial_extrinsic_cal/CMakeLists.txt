@@ -82,7 +82,7 @@ set(CMAKE_CXX_FLAGS ${CMAKE_CSS_FLAGS} "-fPIC")
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-   INCLUDE_DIRS include
+   INCLUDE_DIRS include /usr/include/eigen3
 #  LIBRARIES 
    CATKIN_DEPENDS roscpp std_msgs rosconsole std_srvs roslib 
 #  DEPENDS 

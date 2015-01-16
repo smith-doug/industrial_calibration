@@ -1386,8 +1386,7 @@ namespace industrial_extrinsic_cal
   options.max_num_iterations = 1000;
   ceres::Solve(options, problem_, &ceres_summary_);
 
-  if(ceres_summary_.termination_type == ceres::USER_SUCCESS
-     || ceres_summary_.termination_type == ceres::CONVERGENCE ){
+  if(ceres_summary_.termination_type != ceres::NO_CONVERGENCE ){
       ROS_INFO("Problem Solved");
       double error_per_observation = ceres_summary_.initial_cost/total_observations_;
 
