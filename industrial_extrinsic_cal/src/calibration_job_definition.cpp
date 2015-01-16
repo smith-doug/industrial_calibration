@@ -143,7 +143,6 @@ namespace industrial_extrinsic_cal
 	      temp_camera->trigger_ = make_shared<ROSRobotJointValuesActionServerTrigger>(trig_action_server, joint_values);
 	    }
 	    else if(trigger_name == std::string("ROS_ROBOT_POSE_ACTION_TRIGGER")){
-	      trigger_action_server = this_camera("trig_action_server"].as<std::string>();
 	      geometry_msgs::Pose pose;
 	      const YAML::Node this_pose = this_camera["pose"];
 	      pose.position.x = this_pose[0].as<double>();
@@ -174,7 +173,7 @@ namespace industrial_extrinsic_cal
 	      temp_ti = make_shared<ROSCameraBroadcastTransInterface>(camera_optical_frame, pose);
 	    }
 	    else if(transform_interface == std::string("ros_camera_housing_lti")){ 
-	      camera_housing_frame = this_camera["camera_housing_frame"].as<std:string>();
+	      camera_housing_frame = this_camera["camera_housing_frame"].as<std::string>();
 	      temp_ti = make_shared<ROSCameraHousingListenerTInterface>(camera_optical_frame,camera_housing_frame);
 	    }
 	    else if(transform_interface == std::string("ros_camera_housing_bti")){ 
@@ -204,9 +203,7 @@ namespace industrial_extrinsic_cal
 
 	    temp_camera->camera_observer_ = make_shared<ROSCameraObserver>(temp_topic);
 	    ceres_blocks_.addStaticCamera(temp_camera);
-	    
 	  }// end of each camera
-	temp_camera->trigger_ = make_shared<ROSRobotJointValuesActionServerTrigger>(trig_action_server, joint_values);
   
 	// read in all moving cameras
 	camera_parameters = camera_doc["moving_cameras"];
@@ -268,7 +265,7 @@ namespace industrial_extrinsic_cal
 	    else if(trigger_name == std::string("ROS_ROBOT_POSE_ACTION_TRIGGER")){
 	      trig_action_server = this_camera["trig_action_server"].as<std::string>();
 	      geometry_msgs::Pose pose;
-	      std::vector<double> temp = this_camera[pose].as<std::vector<double> >();
+	      std::vector<double> temp = this_camera["pose"].as<std::vector<double> >();
 	      pose.position.x = temp[0];
 	      pose.position.y = temp[1];
 	      pose.position.z = temp[2];
@@ -293,7 +290,7 @@ namespace industrial_extrinsic_cal
 	      temp_ti = make_shared<ROSCameraBroadcastTransInterface>(camera_optical_frame, pose);
 	    }
 	    else if(transform_interface == std::string("ros_camera_housing_lti")){ 
-	      camera_housing_frame; = this_camera["camera_housing_frame"].as<std::string>();
+	      camera_housing_frame = this_camera["camera_housing_frame"].as<std::string>();
 	      temp_ti = make_shared<ROSCameraHousingListenerTInterface>(camera_optical_frame, camera_housing_frame);
 	    }
 	    else if(transform_interface == std::string("ros_camera_housing_bti")){ 
@@ -517,8 +514,8 @@ namespace industrial_extrinsic_cal
 	    switch (temp_target->target_type_)
 	      {
 	      case pattern_options::Chessboard:
-		temp_target->checker_board_parameters_.pattern_rows = this_target["target_rows"].as<std::string>();
-		temp_target->checker_board_parameters_.pattern_cols = this_target["target_cols"].as<std::string>();
+		temp_target->checker_board_parameters_.pattern_rows = this_target["target_rows"].as<int>();
+		temp_target->checker_board_parameters_.pattern_cols = this_target["target_cols"].as<int>();
 		ROS_DEBUG_STREAM("TargetRows: "<<temp_target->checker_board_parameters_.pattern_rows);
 		break;
 	      case pattern_options::CircleGrid:
@@ -618,7 +615,7 @@ namespace industrial_extrinsic_cal
 		
 		temp_target->is_moving_ = true;
 		temp_target->target_name_ = this_target["target_name"].as<std::string>();
-		temp_frame                         = this_target["target_frame"].as<std::string>();
+		temp_target->target_frame_ = this_target["target_frame"].as<std::string>();
 		transform_interface              = this_target["transform_interface"].as<std::string>();
 
 		// install target's transform interface
@@ -643,8 +640,8 @@ namespace industrial_extrinsic_cal
 		switch (temp_target->target_type_)
 		  {
 		  case pattern_options::Chessboard:
-		    temp_target->checkerboard_parameters_.pattern_rows = this_target["target_rows"].as<int>();
-		    temp_target->checkerboard_parameters_.pattern_cols = this_target["target_cols"].as<int>();
+		    temp_target->checker_board_parameters_.pattern_rows = this_target["target_rows"].as<int>();
+		    temp_target->checker_board_parameters_.pattern_cols = this_target["target_cols"].as<int>();
 		    ROS_INFO_STREAM("TargetRows: "<<temp_target->checker_board_parameters_.pattern_rows);
 		    break;
 		  case pattern_options::CircleGrid:
@@ -687,22 +684,17 @@ namespace industrial_extrinsic_cal
 		temp_target->setTransformInterface(temp_ti);// install the transform interface 
 		scene_id = this_target["scene_id"].as<int>();
 		temp_target->num_points_ = this_target["num_points"].as<int>();
-
-		
 		const YAML::Node points_node = this_target["points"];
-		for (int j = 0; j < points_node->size(); j++)
+		for (int j = 0; j < points_node.size(); j++)
 		  {
-		    const YAML::Node this_point = point_node[j].FindValue("pnt");
-		    std::vector<float> temp_pnt;
-		    (*pnt_node) >> temp_pnt;
+		    const YAML::Node this_point = points_node[j]["pnt"];
 		    Point3d temp_pnt3d;
-		    temp_pnt3d.x = temp_pnt[0];
-		    temp_pnt3d.y = temp_pnt[1];
-		    temp_pnt3d.z = temp_pnt[2];
+		    temp_pnt3d.x = this_point[0].as<double>();
+		    temp_pnt3d.y = this_point[1].as<double>();
+		    temp_pnt3d.z = this_point[2].as<double>();
 		    temp_target->pts_.push_back(temp_pnt3d);
 		  }
 		ceres_blocks_.addMovingTarget(temp_target, scene_id);
-		target_frames_.push_back(temp_frame);
 	      }
 	    ceres_blocks_.addMovingTarget(temp_target, scene_id);
 	  }// end for each moving target
@@ -805,7 +797,7 @@ namespace industrial_extrinsic_cal
 	    roi.x_min = this_trigger["roi_min_x"].as<int>();
 	    roi.x_max = this_trigger["roi_max_x"].as<int>();
 	    roi.y_min = this_trigger["roi_min_y"].as<int>();
-	    roi.y_ax = this_trigger["roi_max_y"].as<int>();
+	    roi.y_max = this_trigger["roi_max_y"].as<int>();
 	    temp_trigger = make_shared<ROSCameraObserverTrigger>(service_name, instructions, image_topic, roi);
 	  }
 	  else{
@@ -815,7 +807,7 @@ namespace industrial_extrinsic_cal
 	  scene_list_.at(i).setSceneId(scene_id_num);
 
 	  const YAML::Node observations = this_scene["observations"];
-	  ROS_DEBUG_STREAM("Found "<<this_observation.size() <<" observations within scene "<<i);
+	  ROS_DEBUG_STREAM("Found "<<observations.size() <<" observations within scene "<<i);
 	  for (unsigned int j = 0; j < observations.size(); j++){
 	    const YAML::Node this_observation = observations[i];
 	    camera_name = this_observation["camera"].as<std::string>();
@@ -1395,10 +1387,7 @@ namespace industrial_extrinsic_cal
   ceres::Solve(options, problem_, &ceres_summary_);
 
   if(ceres_summary_.termination_type == ceres::USER_SUCCESS
-     || ceres_summary_.termination_type == ceres::FUNCTION_TOLERANCE
-     || ceres_summary_.termination_type == ceres::GRADIENT_TOLERANCE
-     || ceres_summary_.termination_type == ceres::PARAMETER_TOLERANCE
-     ){
+     || ceres_summary_.termination_type == ceres::CONVERGENCE ){
       ROS_INFO("Problem Solved");
       double error_per_observation = ceres_summary_.initial_cost/total_observations_;
 

@@ -143,13 +143,6 @@ public:
     return ceres_blocks_.reference_frame_;
   }
 
-<<<<<<< HEAD
-=======
-  const std::vector<std::string>& getTargetFrames() const
-  {
-    return target_frames_;
-  }
-
   /** @brief get cost per observation
    *   @returns average cost per observation after optimization
    **/
@@ -166,8 +159,6 @@ public:
    */
   bool computeCovariance(std::vector<CovarianceVariableRequest> &variables, std::string &covariance_file_name);
 
-
->>>>>>> devel
   //    ::std::ostream& operator<<(::std::ostream& os, const CalibrationJob& C){ return os<< "TODO";}
 protected:
   /*!
