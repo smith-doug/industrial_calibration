@@ -22,6 +22,7 @@
 #include <vector>
 #include <boost/shared_ptr.hpp>
 #include <tf/LinearMath/Matrix3x3.h>
+#include <string>
 
 namespace industrial_extrinsic_cal
 {
