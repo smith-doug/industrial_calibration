@@ -32,11 +32,10 @@ using std::string;
 using boost::shared_ptr;
 using boost::make_shared;
 using ceres::CostFunction;
+using industrial_extrinsic_cal::CovarianceRequestType;
 
 namespace industrial_extrinsic_cal
 {
-
-
   bool CalibrationJob::load()
   {
     if(CalibrationJob::loadCamera())
@@ -87,25 +86,25 @@ namespace industrial_extrinsic_cal
 	//	YAML::Parser camera_parser(camera_input_file);
 	//	YAML::Node camera_doc;
 	//	camera_parser.GetNextDocument(camera_doc);
-
+	
 	YAML::Node camera_doc = YAML::LoadFile(camera_def_file_name_.c_str());
 	YAML::Node camera_parameters = camera_doc["static_cameras"];
-
+	
 	ROS_DEBUG_STREAM("Found " << camera_parameters.size() << " static cameras ");
 	for (unsigned int i = 0; i < camera_parameters.size(); i++)// for each static camera
 	  {
 	    YAML::Node this_camera = camera_parameters[i];
-	    temp_name                      = this_camera["camera_name"].as<std::string>();
-	    trigger_name                   = this_camera["trigger"].as<std::string>();
-	    temp_topic                     = this_camera["image_topic"].as<std::string>();
-	    camera_optical_frame           = this_camera["camera_optical_frame"].as<std::string>();
-	    transform_interface            = this_camera["transform_interface"].as<std::string>();
+	    temp_name                               = this_camera["camera_name"].as<std::string>();
+	    trigger_name                             = this_camera["trigger"].as<std::string>();
+	    temp_topic                                = this_camera["image_topic"].as<std::string>();
+	    camera_optical_frame                = this_camera["camera_optical_frame"].as<std::string>();
+	    transform_interface                    = this_camera["transform_interface"].as<std::string>();
 	    temp_parameters.angle_axis[0]  = this_camera["angle_axis_ax"].as<double>();
 	    temp_parameters.angle_axis[1]  = this_camera["angle_axis_ay"].as<double>();
 	    temp_parameters.angle_axis[2]  = this_camera["angle_axis_az"].as<double>();
-	    temp_parameters.position[0]    = this_camera["position_x"].as<double>();
-	    temp_parameters.position[1]    = this_camera["position_y"].as<double>();
-	    temp_parameters.position[2]    = this_camera["position_z"].as<double>();
+	    temp_parameters.position[0]     = this_camera["position_x"].as<double>();
+	    temp_parameters.position[1]     = this_camera["position_y"].as<double>();
+	    temp_parameters.position[2]     = this_camera["position_z"].as<double>();
 	    temp_parameters.focal_length_x = this_camera["focal_length_x"].as<double>();
 	    temp_parameters.focal_length_y = this_camera["focal_length_y"].as<double>();
 	    temp_parameters.center_x       = this_camera["center_x"].as<double>();
@@ -120,7 +119,7 @@ namespace industrial_extrinsic_cal
 	    // create a shared camera and a shared transform interface
 	    shared_ptr<Camera> temp_camera = make_shared<Camera>(temp_name, temp_parameters, false);
 	    shared_ptr<TransformInterface> temp_ti;
-    
+	    
 	    // handle all the different trigger cases
 	    if(trigger_name == std::string("NO_WAIT_TRIGGER")){
 	      temp_camera->trigger_ = make_shared<NoWaitTrigger>();
@@ -144,20 +143,24 @@ namespace industrial_extrinsic_cal
 	      temp_camera->trigger_ = make_shared<ROSRobotJointValuesActionServerTrigger>(trig_action_server, joint_values);
 	    }
 	    else if(trigger_name == std::string("ROS_ROBOT_POSE_ACTION_TRIGGER")){
-	      trig_action_server = this_camera["trig_action_server"].as<std::string>();
+	      trigger_action_server = this_camera("trig_action_server"].as<std::string>();
 	      geometry_msgs::Pose pose;
-	      pose.position.x = this_camera["pose"][0].as<double>();
-	      pose.position.y = this_camera["pose"][1].as<double>();
-	      pose.position.z = this_camera["pose"][2].as<double>();
-	      pose.orientation.x = this_camera["pose"][3].as<double>();
-	      pose.orientation.y = this_camera["pose"][4].as<double>();
-	      pose.orientation.z = this_camera["pose"][5].as<double>();
-	      pose.orientation.w = this_camera["pose"][6].as<double>();
+	      const YAML::Node this_pose = this_camera["pose"];
+	      pose.position.x = this_pose[0].as<double>();
+	      pose.position.y = this_pose[1].as<double>();
+	      pose.position.z = this_pose[2].as<double>();
+	      pose.orientation.x = this_pose[3].as<double>();
+	      pose.orientation.y = this_pose[4].as<double>();
+	      pose.orientation.z = this_pose[5].as<double>();
+	      pose.orientation.w = this_pose[6].as<double>();
 	      temp_camera->trigger_ = make_shared<ROSRobotPoseActionServerTrigger>(trig_action_server, pose);
 	    }
 	    else{
-	      ROS_ERROR("No scene trigger of type %s", trigger_name.c_str());
+	      ROS_ERROR("No camera trigger of type %s", trigger_name.c_str());
 	    }
+	    // end of parsing for camera trigger
+
+	    // parse the transform interface
 	    if(transform_interface == std::string("ros_lti")){ // this option makes no sense for a camera
 	      temp_ti = make_shared<ROSListenerTransInterface>(camera_optical_frame);
 	    }
@@ -171,7 +174,7 @@ namespace industrial_extrinsic_cal
 	      temp_ti = make_shared<ROSCameraBroadcastTransInterface>(camera_optical_frame, pose);
 	    }
 	    else if(transform_interface == std::string("ros_camera_housing_lti")){ 
-	      camera_housing_frame = this_camera["camera_housing_frame"].as<std::string>();
+	      camera_housing_frame = this_camera["camera_housing_frame"].as<std:string>();
 	      temp_ti = make_shared<ROSCameraHousingListenerTInterface>(camera_optical_frame,camera_housing_frame);
 	    }
 	    else if(transform_interface == std::string("ros_camera_housing_bti")){ 
@@ -179,14 +182,14 @@ namespace industrial_extrinsic_cal
 	      temp_ti = make_shared<ROSCameraHousingBroadcastTInterface>(camera_optical_frame,  pose);
 	    }
 	    else if(transform_interface == std::string("ros_camera_housing_cti")){ 
-	      camera_housing_frame  = this_camera["camera_housing_frame"].as<std::string>();
-	      camera_mounting_frame = this_camera["camera_mounting_frame"].as<std::string>(); 
+	      camera_housing_frame = this_camera["camera_housing_frame"].as<std::string>();
+	      camera_mounting_frame = this_camera["camera_mounting_frame"].as<std::string>();
 	      temp_ti = make_shared<ROSCameraHousingCalTInterface>(camera_optical_frame, 
 								   camera_housing_frame,
 								   camera_mounting_frame);
 	    }
 	    else if(transform_interface == std::string("ros_scti")){ 
-	      camera_mounting_frame = this_camera["parent_frame"].as<std::string>(); 
+	      camera_mounting_frame = this_camera[parent_frame].as<std::string>();
 	      temp_ti = make_shared<ROSSimpleCalTInterface>(camera_optical_frame,  camera_mounting_frame);
 	    }
 	    else if(transform_interface == std::string("default_ti")){
@@ -197,14 +200,17 @@ namespace industrial_extrinsic_cal
 	      temp_ti = make_shared<DefaultTransformInterface>(pose);
 	    }
 	    temp_camera->setTransformInterface(temp_ti);// install the transform interface 
+	    // end of parsing transform interface 
+
 	    temp_camera->camera_observer_ = make_shared<ROSCameraObserver>(temp_topic);
 	    ceres_blocks_.addStaticCamera(temp_camera);
-	  }// end for each static camera
-
-
+	    
+	  }// end of each camera
+	temp_camera->trigger_ = make_shared<ROSRobotJointValuesActionServerTrigger>(trig_action_server, joint_values);
+  
 	// read in all moving cameras
 	camera_parameters = camera_doc["moving_cameras"];
-
+	
 	ROS_DEBUG_STREAM("Found " << camera_parameters.size() << " moving cameras ");
 	for (unsigned int i = 0; i < camera_parameters.size(); i++)// for each moving camera
 	  {
@@ -230,13 +236,93 @@ namespace industrial_extrinsic_cal
 	    temp_parameters.distortion_k3  = this_camera["distortion_k3"].as<double>();
 	    temp_parameters.distortion_p1  = this_camera["distortion_p1"].as<double>();
 	    temp_parameters.distortion_p2  = this_camera["distortion_p2"].as<double>();
-		
+	    
 	    Pose6d pose(temp_parameters.position[0],temp_parameters.position[1],temp_parameters.position[2],
 			temp_parameters.angle_axis[0],temp_parameters.angle_axis[1],temp_parameters.angle_axis[2]);
 	    // create a shared camera and a shared transform interface
 	    shared_ptr<Camera> temp_camera = make_shared<Camera>(temp_name, temp_parameters, true);
 	    shared_ptr<TransformInterface> temp_ti;
-
+	    
+	    // handle all the different trigger cases
+	    if(trigger_name == std::string("NO_WAIT_TRIGGER")){
+	      temp_camera->trigger_ = make_shared<NoWaitTrigger>();
+	    }
+	    else if(trigger_name == std::string("ROS_PARAM_TRIGGER")){
+	      trig_param = this_camera["trig_param"].as<std::string>();
+	      temp_camera->trigger_ = make_shared<ROSParamTrigger>(trig_param);
+	    }
+	    else  if(trigger_name == std::string("ROS_ACTION_TRIGGER")){
+	      trig_action_server = this_camera["trig_action_server"].as<std::string>();
+	      trig_action_msg = this_camera["trig_action_message"].as<std::string>();
+	      temp_camera->trigger_ = make_shared<ROSActionServerTrigger>(trig_action_server, trig_action_msg);
+	    }
+	    else if(trigger_name == std::string("ROS_ROBOT_JOINT_VALUES_ACTION_TRIGGER")){
+	      trig_action_server = this_camera["trig_action_server"].as<std::string>();
+	      std::vector<double>joint_values;
+	      joint_values = this_camera["joint_values"].as<std::vector<double> >();
+	      if(joint_values.size()<0){
+		ROS_ERROR("Couldn't read joint_values for ROS_ROBOT_JOINT_VALUES_ACTION_TRIGGER");
+	      }
+	      temp_camera->trigger_ = make_shared<ROSRobotJointValuesActionServerTrigger>(trig_action_server, joint_values);
+	    }
+	    else if(trigger_name == std::string("ROS_ROBOT_POSE_ACTION_TRIGGER")){
+	      trig_action_server = this_camera["trig_action_server"].as<std::string>();
+	      geometry_msgs::Pose pose;
+	      std::vector<double> temp = this_camera[pose].as<std::vector<double> >();
+	      pose.position.x = temp[0];
+	      pose.position.y = temp[1];
+	      pose.position.z = temp[2];
+	      pose.orientation.x = temp[3];
+	      pose.orientation.y = temp[4];
+	      pose.orientation.z = temp[5];
+	      pose.orientation.w = temp[6];
+	      temp_camera->trigger_ = make_shared<ROSRobotPoseActionServerTrigger>(trig_action_server, pose);
+	    }
+	    
+	    // install camera's transform interface
+	    if(transform_interface == std::string("ros_lti")){ // this option makes no sense for a camera
+	      temp_ti = make_shared<ROSListenerTransInterface>(camera_optical_frame);
+	    }
+	    else if(transform_interface == std::string("ros_bti")){ // this option makes no sense for a camera
+	      temp_ti = make_shared<ROSBroadcastTransInterface>(camera_optical_frame, pose);
+	    }
+	    else if(transform_interface == std::string("ros_camera_lti")){ 
+	      temp_ti = make_shared<ROSCameraListenerTransInterface>(camera_optical_frame);
+	    }
+	    else if(transform_interface == std::string("ros_camera_bti")){ 
+	      temp_ti = make_shared<ROSCameraBroadcastTransInterface>(camera_optical_frame, pose);
+	    }
+	    else if(transform_interface == std::string("ros_camera_housing_lti")){ 
+	      camera_housing_frame; = this_camera["camera_housing_frame"].as<std::string>();
+	      temp_ti = make_shared<ROSCameraHousingListenerTInterface>(camera_optical_frame, camera_housing_frame);
+	    }
+	    else if(transform_interface == std::string("ros_camera_housing_bti")){ 
+	      camera_housing_frame = this_camera["camera_housing_frame"].as<std::string>();
+	      temp_ti = make_shared<ROSCameraHousingBroadcastTInterface>(camera_optical_frame, pose);
+	    }
+	    else if(transform_interface == std::string("ros_camera_housing_cti")){ 
+	      camera_housing_frame = this_camera["camera_housing_frame"].as<std::string>();
+	      camera_mounting_frame = this_camera["camera_mounting_frame"].as<std::string>();
+	      temp_ti = make_shared<ROSCameraHousingCalTInterface>(camera_optical_frame, 
+								   camera_housing_frame,
+								   camera_mounting_frame);
+	    }
+	    else if(transform_interface == std::string("ros_scti")){ 
+	      camera_mounting_frame = this_camera["parent_frame"].as<std::string>();
+	      temp_ti = make_shared<ROSSimpleCalTInterface>(camera_optical_frame,  camera_mounting_frame);
+	    }
+	    else if(transform_interface == std::string("default_ti")){
+	      temp_ti = make_shared<DefaultTransformInterface>(pose);
+	    }
+	    else{
+	      ROS_ERROR("Unimplemented Transform Interface: %s",transform_interface.c_str());
+	      temp_ti = make_shared<DefaultTransformInterface>(pose);
+	    }
+	    temp_camera->setTransformInterface(temp_ti);// install the transform interface 
+	    temp_camera->camera_observer_ = make_shared<ROSCameraObserver>(temp_topic);
+	    scene_id = 0;
+	    ceres_blocks_.addMovingCamera(temp_camera, scene_id);
+	    
 	    // handle all the different trigger cases
 	    if(trigger_name == std::string("NO_WAIT_TRIGGER")){
 	      temp_camera->trigger_ = make_shared<NoWaitTrigger>();
@@ -271,7 +357,7 @@ namespace industrial_extrinsic_cal
 	      pose.orientation.w = this_camera["pose"][6].as<double>();
 	      temp_camera->trigger_ = make_shared<ROSRobotPoseActionServerTrigger>(trig_action_server, pose);
 	    }
-
+	    
 	    // install camera's transform interface
 	    if(transform_interface == std::string("ros_lti")){ // this option makes no sense for a camera
 	      temp_ti = make_shared<ROSListenerTransInterface>(camera_optical_frame);
@@ -423,12 +509,44 @@ namespace industrial_extrinsic_cal
 	    shared_ptr<Target> temp_target = make_shared<Target>();
 	    shared_ptr<TransformInterface> temp_ti;
 
-	    temp_target->is_moving_ = true;
+	    temp_target->is_moving_ = false;
 	    temp_target->target_name_ = this_target["target_name"].as<std::string>();
 	    temp_target->target_frame_ = this_target["target_frame"].as<std::string>();
 	    temp_target->target_type_ = this_target["target_type"].as<unsigned int>();
 	    transform_interface = this_target["transform_interface"].as<std::string>();
-
+	    switch (temp_target->target_type_)
+	      {
+	      case pattern_options::Chessboard:
+		temp_target->checker_board_parameters_.pattern_rows = this_target["target_rows"].as<std::string>();
+		temp_target->checker_board_parameters_.pattern_cols = this_target["target_cols"].as<std::string>();
+		ROS_DEBUG_STREAM("TargetRows: "<<temp_target->checker_board_parameters_.pattern_rows);
+		break;
+	      case pattern_options::CircleGrid:
+		temp_target->circle_grid_parameters_.pattern_rows = this_target["target_rows"].as<int>();
+		temp_target->circle_grid_parameters_.pattern_cols = this_target["target_cols"].as<int>();
+		temp_target->circle_grid_parameters_.circle_diameter = this_target["circle_dia"].as<double>();
+		temp_target->circle_grid_parameters_.is_symmetric=true;
+		ROS_DEBUG_STREAM("TargetRows: "<<temp_target->circle_grid_parameters_.pattern_rows);
+		break;
+	      case pattern_options::ModifiedCircleGrid:
+		temp_target->circle_grid_parameters_.pattern_rows = this_target["target_rows"].as<int>();
+		temp_target->circle_grid_parameters_.pattern_cols = this_target["target_cols"].as<int>();
+		temp_target->circle_grid_parameters_.circle_diameter = this_target["circle_dia"].as<double>();
+		temp_target->circle_grid_parameters_.is_symmetric=true;
+		ROS_DEBUG_STREAM("TargetRows: "<<temp_target->circle_grid_parameters_.pattern_rows);
+		break;
+	      default:
+		ROS_ERROR_STREAM("target_type does not correlate to a known pattern option (Chessboard, CircleGrid, or ModifiedCircleGrid)");
+		return false;
+		break;
+	      } // end of target type
+	    temp_target->pose_.ax = this_target["angle_axis_ax"].as<double>();
+	    temp_target->pose_.ay = this_target["angle_axis_ay"].as<double>();
+	    temp_target->pose_.az = this_target["angle_axis_az"].as<double>();
+	    temp_target->pose_.x = this_target["position_x"].as<double>();
+	    temp_target->pose_.y = this_target["position_y"].as<double>();
+	    temp_target->pose_.z = this_target["position_z"].as<double>();
+	    transform_interface = this_target["transform_interface"].as<std::string>();
 	    // install target's transform interface
 	    if(transform_interface == std::string("ros_lti")){ 
 	      temp_ti = make_shared<ROSListenerTransInterface>(temp_target->target_frame_);
@@ -494,12 +612,97 @@ namespace industrial_extrinsic_cal
 	    ROS_DEBUG_STREAM("FoundPoints: " << points_node.size());
 	    for (int j = 0; j < points_node.size(); j++)
 	      {
-		const YAML::Node this_point = points_node[j]["pnt"];
-		Point3d temp_pnt3d;
-		temp_pnt3d.x = this_point[0].as<double>();
-		temp_pnt3d.y = this_point[1].as<double>();
-		temp_pnt3d.z = this_point[2].as<double>();
-		temp_target->pts_.push_back(temp_pnt3d);
+		// create shared target and transform interface
+		shared_ptr<Target> temp_target = make_shared<Target>();
+		shared_ptr<TransformInterface> temp_ti;
+		
+		temp_target->is_moving_ = true;
+		temp_target->target_name_ = this_target["target_name"].as<std::string>();
+		temp_frame                         = this_target["target_frame"].as<std::string>();
+		transform_interface              = this_target["transform_interface"].as<std::string>();
+
+		// install target's transform interface
+		if(transform_interface == std::string("ros_lti")){ 
+		  temp_ti = make_shared<ROSListenerTransInterface>(temp_target->target_frame_);
+		}
+		else if(transform_interface == std::string("ros_bti")){ 
+		  temp_ti = make_shared<ROSBroadcastTransInterface>(temp_target->target_frame_, temp_target->pose_);
+		}
+		else if(transform_interface == std::string("default_ti")){
+		  temp_ti = make_shared<DefaultTransformInterface>(temp_target->pose_);
+		}
+		else{
+		  ROS_ERROR("Unimplemented Transform Interface: %s",transform_interface.c_str());
+		  temp_ti = make_shared<DefaultTransformInterface>(temp_target->pose_);
+		}
+		temp_target->setTransformInterface(temp_ti);// install the transform interface 
+		
+		// set parameters by the target's type
+		temp_target->target_type_ = this_target["target_type"].as<int>();
+		//ROS_DEBUG_STREAM("TargetFrame: "<<temp_frame);
+		switch (temp_target->target_type_)
+		  {
+		  case pattern_options::Chessboard:
+		    temp_target->checkerboard_parameters_.pattern_rows = this_target["target_rows"].as<int>();
+		    temp_target->checkerboard_parameters_.pattern_cols = this_target["target_cols"].as<int>();
+		    ROS_INFO_STREAM("TargetRows: "<<temp_target->checker_board_parameters_.pattern_rows);
+		    break;
+		  case pattern_options::CircleGrid:
+		    temp_target->circle_grid_parameters_.pattern_rows = this_target["target_rows"].as<int>();
+		    temp_target->circle_grid_parameters_.pattern_cols = this_target["target_cols"].as<int>();
+		    temp_target->circle_grid_parameters_.circle_diameter = this_target["circle_dia"].as<double>();
+		    temp_target->circle_grid_parameters_.is_symmetric=true;
+		    break;
+		  case pattern_options::ModifiedCircleGrid:
+		    temp_target->circle_grid_parameters_.pattern_rows = this_target["target_rows"].as<int>();
+		    temp_target->circle_grid_parameters_.pattern_cols = this_target["target_cols"].as<int>();
+		    temp_target->circle_grid_parameters_.circle_diameter = this_target["circle_dia"].as<double>();
+		    temp_target->circle_grid_parameters_.is_symmetric=true;
+		    break;
+		  default:
+		    ROS_ERROR_STREAM("target_type does not correlate to a known pattern option (Chessboard or CircleGrid)");
+		    return false;
+		    break;
+		  }
+		temp_target->pose_.ax = this_target["angle_axis_ax"].as<double>();
+		temp_target->pose_.ay = this_target["angle_axis_ay"].as<double>();
+		temp_target->pose_.az = this_target["angle_axis_az"].as<double>();
+		temp_target->pose_.x = this_target["position_x"].as<double>();
+		temp_target->pose_.y = this_target["position_y"].as<double>();
+		temp_target->pose_.z = this_target["position_z"].as<double>();
+		transform_interface  = this_target["transform_interface"].as<std::string>();
+		if(transform_interface == std::string("ros_lti")){
+		  temp_ti = make_shared<ROSListenerTransInterface>(temp_target->target_frame_);
+		}
+		if(transform_interface == std::string("ros_bti")){
+		  temp_ti = make_shared<ROSBroadcastTransInterface>(temp_target->target_frame_,temp_target->pose_);
+		}
+		else if(transform_interface == std::string("default_ti")){
+		  temp_ti = make_shared<DefaultTransformInterface>(temp_target->pose_);
+		}
+		else{
+		  ROS_ERROR("Unimplemented Transform Interface: %s",transform_interface.c_str());
+		  temp_ti = make_shared<DefaultTransformInterface>(temp_target->pose_);
+		}
+		temp_target->setTransformInterface(temp_ti);// install the transform interface 
+		scene_id = this_target["scene_id"].as<int>();
+		temp_target->num_points_ = this_target["num_points"].as<int>();
+
+		
+		const YAML::Node points_node = this_target["points"];
+		for (int j = 0; j < points_node->size(); j++)
+		  {
+		    const YAML::Node this_point = point_node[j].FindValue("pnt");
+		    std::vector<float> temp_pnt;
+		    (*pnt_node) >> temp_pnt;
+		    Point3d temp_pnt3d;
+		    temp_pnt3d.x = temp_pnt[0];
+		    temp_pnt3d.y = temp_pnt[1];
+		    temp_pnt3d.z = temp_pnt[2];
+		    temp_target->pts_.push_back(temp_pnt3d);
+		  }
+		ceres_blocks_.addMovingTarget(temp_target, scene_id);
+		target_frames_.push_back(temp_frame);
 	      }
 	    ceres_blocks_.addMovingTarget(temp_target, scene_id);
 	  }// end for each moving target
@@ -511,7 +714,7 @@ namespace industrial_extrinsic_cal
 	return (false);
       }
     return true;
-
+    
   }
 
   bool CalibrationJob::loadCalJob()
@@ -537,8 +740,7 @@ namespace industrial_extrinsic_cal
 	YAML::Node caljob_doc = YAML::LoadFile(caljob_def_file_name_.c_str());
 	reference_frame = caljob_doc["reference_frame"].as<std::string>();
 	ceres_blocks_.setReferenceFrame(reference_frame);
-	opt_params = caljob_doc["optimization_parameters"].as<std::string>();
-
+	
 	// read in all scenes
 	YAML::Node caljob_scenes = caljob_doc["scenes"];
 	int num_scenes = caljob_scenes.size();
@@ -569,7 +771,7 @@ namespace industrial_extrinsic_cal
 	  else if(trigger_name == std::string("ROS_ROBOT_JOINT_VALUES_ACTION_TRIGGER")){
 	    trig_action_server = this_scene["trig_action_server"].as<std::string>();
 	    std::vector<double>joint_values;
-	    joint_values = this_scene["joint_values"].as<std::vector<double> >();
+	    joint_values = this_scene["joint_values"].as< std::vector<double> >();
 	    if(joint_values.size()<1){
 	      ROS_ERROR("Couldn't read  joint_values for ROS_ROBOT_JOINT_VALUES_ACTION_TRIGGER");
 	    }
@@ -577,46 +779,67 @@ namespace industrial_extrinsic_cal
 	  }
 	  else if(trigger_name == std::string("ROS_ROBOT_POSE_ACTION_TRIGGER")){
 	    trig_action_server = this_scene["trig_action_server"].as<std::string>();
+	    std::vector<double> values = this_scene["pose"].as<std::vector<double> >();
+	    if(values.size() != 7){
+	      ROS_ERROR("Could not read pose values for robot pose action trigger");
+	    }
 	    geometry_msgs::Pose pose;
-	    pose.position.x = this_scene["pose"][0].as<double>();
-	    pose.position.y = this_scene["pose"][1].as<double>();
-	    pose.position.z = this_scene["pose"][2].as<double>();
-	    pose.orientation.x = this_scene["pose"][3].as<double>();
-	    pose.orientation.y = this_scene["pose"][4].as<double>();
-	    pose.orientation.z = this_scene["pose"][5].as<double>();
-	    pose.orientation.w = this_scene["pose"][6].as<double>();
+	    pose.position.x = values[0];
+	    pose.position.y = values[1];
+	    pose.position.z = values[2];
+	    pose.orientation.x = values[3];
+	    pose.orientation.y = values[4];
+	    pose.orientation.z = values[5];
+	    pose.orientation.w = values[6];
 	    temp_trigger = make_shared<ROSRobotPoseActionServerTrigger>(trig_action_server, pose);
 	  }
-	  
+	  else if(trigger_name == std::string("ROS_CAMERA_OBSERVER_TRIGGER")){
+	    const YAML::Node this_trigger = this_scene["trigger_parameters"];
+	    Roi roi;
+	    std::string service_name;
+	    std::string instructions;
+	    std::string image_topic;
+	    service_name = this_trigger["service_name"].as<std::string>();
+	    instructions = this_trigger["instructions"].as<std::string>();
+	    image_topic = this_trigger["image_topic"].as<std::string>();
+	    roi.x_min = this_trigger["roi_min_x"].as<int>();
+	    roi.x_max = this_trigger["roi_max_x"].as<int>();
+	    roi.y_min = this_trigger["roi_min_y"].as<int>();
+	    roi.y_ax = this_trigger["roi_max_y"].as<int>();
+	    temp_trigger = make_shared<ROSCameraObserverTrigger>(service_name, instructions, image_topic, roi);
+	  }
+	  else{
+	    ROS_ERROR("Unknown scene trigger type %s", trigger_name.c_str());
+	  }
 	  scene_list_.at(i).setTrigger(temp_trigger);
 	  scene_list_.at(i).setSceneId(scene_id_num);
-	  
-	  YAML::Node observations = this_scene["observations"];
-	  ROS_DEBUG_STREAM("Found "<<observations.size() <<" observations within scene "<<i);
-	  for (unsigned int j = 0; j < observations.size(); j++)// for each observation
-	    {
-	      YAML::Node this_observation = observations[j];
-	      camera_name = this_observation["camera"].as<std::string>();
-	      temp_roi.x_min = this_observation["roi_x_min"].as<int>();
-	      temp_roi.x_max = this_observation["roi_x_max"].as<int>();
-	      temp_roi.y_min = this_observation["roi_y_min"].as<int>();
-	      temp_roi.y_max = this_observation["roi_y_max"].as<int>();
-	      target_name = this_observation["target"].as<std::string>();
-	      cost_type_string = this_observation["cost_type"].as<std::string>();
-	      cost_type = string2CostType(cost_type_string);
-	      if((temp_cam = ceres_blocks_.getCameraByName(camera_name)) == NULL){
-		ROS_ERROR("Couldn't find camea %s",camera_name.c_str());
-	      }
-	      if((temp_targ = ceres_blocks_.getTargetByName(target_name)) == NULL){;
-		ROS_ERROR("Couldn't find target %s",target_name.c_str());
-	      }
-	      scene_list_.at(i).addCameraToScene(temp_cam);
-	      cost_type = string2CostType(cost_type_string);
-	      scene_list_.at(i).populateObsCmdList(temp_cam, temp_targ, temp_roi, cost_type);
-	    }// end for each observation
-	} // end for each scene
-  } // end try
-  catch (YAML::ParserException& e)
+
+	  const YAML::Node observations = this_scene["observations"];
+	  ROS_DEBUG_STREAM("Found "<<this_observation.size() <<" observations within scene "<<i);
+	  for (unsigned int j = 0; j < observations.size(); j++){
+	    const YAML::Node this_observation = observations[i];
+	    camera_name = this_observation["camera"].as<std::string>();
+	    target_name = this_observation["target"].as<std::string>();
+	    cost_type_string = this_observation["cost_type"].as<std::string>();
+	    temp_roi.x_min = this_observation["roi_x_min"].as<int>();
+	    temp_roi.x_max = this_observation["roi_x_max"].as<int>();
+	    temp_roi.y_min = this_observation["roi_y_min"].as<int>();
+	    temp_roi.y_max = this_observation["roi_y_max"].as<int>();
+	    ROS_ERROR("ROI x[ %d %d], y[ %d %d]", temp_roi.x_min, temp_roi.x_max, temp_roi.y_min, temp_roi.y_max);
+	    cost_type = string2CostType(cost_type_string);
+	    if((temp_cam = ceres_blocks_.getCameraByName(camera_name)) == NULL){
+	      ROS_ERROR("Couldn't find camea %s",camera_name.c_str());
+	    }
+	    if((temp_targ = ceres_blocks_.getTargetByName(target_name)) == NULL){;
+	      ROS_ERROR("Couldn't find target %s",target_name.c_str());
+	    }
+	    scene_list_.at(i).addCameraToScene(temp_cam);
+	    cost_type = string2CostType(cost_type_string);
+	    scene_list_.at(i).populateObsCmdList(temp_cam, temp_targ, temp_roi, cost_type);
+	  }// end for each observation
+	}// end of for each scene
+      }// end try
+    catch (YAML::ParserException& e)
     {
       ROS_ERROR("load() Failed to read in caljob yaml file");
       ROS_ERROR_STREAM("Failed with exception "<< e.what());
@@ -630,14 +853,14 @@ namespace industrial_extrinsic_cal
     ROS_INFO("Running observations");
     runObservations();
     ROS_INFO("Running optimization");
-    bool optimization_ran_ok = runOptimization();
-    if(optimization_ran_ok){
+    solved_ = runOptimization();
+    if(solved_){
       pushTransforms(); // sends updated transforms to their intefaces
     }
     else{
       ROS_ERROR("Optimization failed");
     }
-    return(optimization_ran_ok);
+    return(solved_);
   }
 
   bool CalibrationJob::runObservations()
@@ -657,29 +880,28 @@ namespace industrial_extrinsic_cal
 	ROS_DEBUG_STREAM("Processing Scene " << scene_id+1<<" of "<< scene_list_.size());
 	ROS_INFO("Processing Scene  %d of %d",scene_id, (int) scene_list_.size());
 
+	current_scene.get_trigger()->waitForTrigger(); // this indicates scene is ready to capture
+
+	pullTransforms(scene_id); // gets transforms of targets and cameras from their interfaces
+
 	BOOST_FOREACH(shared_ptr<Camera> current_camera, current_scene.cameras_in_scene_)
 	  {			// clear camera of existing observations
 	    current_camera->camera_observer_->clearObservations(); // clear any recorded data
 	    current_camera->camera_observer_->clearTargets(); // clear all targets
-	    if(current_camera->isMoving()){
-	      ROS_ERROR("Camera %s is moving in scene %d",current_camera->camera_name_.c_str(), scene_id);
-	    }
 	  }
 
 	BOOST_FOREACH(ObservationCmd o_command, current_scene.observation_command_list_)
 	  {	// add each target and roi each camera's list of observations
+	    ROS_ERROR("roi = %d %d %d %d",o_command.roi.x_min, o_command.roi.x_max, o_command.roi.y_min, o_command.roi.y_max);
 	    o_command.camera->camera_observer_->addTarget(o_command.target, o_command.roi, o_command.cost_type);
 	  }
-	
-	current_scene.get_trigger()->waitForTrigger(); // this indicates scene is ready to capture
 
-	pullTransforms(scene_id); // gets transforms of targets and cameras from their interfaces
-	
 	BOOST_FOREACH( shared_ptr<Camera> current_camera, current_scene.cameras_in_scene_)
 	  {// trigger the cameras
 	    P_BLOCK tmp;
 	    current_camera->camera_observer_->triggerCamera();
 	  }
+	ROS_ERROR("cameras triggered");
 
 	// collect results
 	P_BLOCK intrinsics;
@@ -688,7 +910,7 @@ namespace industrial_extrinsic_cal
 	P_BLOCK pnt_pos;
 	std::string camera_name;
 	std::string target_name;
-	int target_type;
+	unsigned int  target_type;
 	Cost_function cost_type;
 
 	// for each camera in scene get a list of observations, and add camera parameters to ceres_blocks
@@ -696,8 +918,9 @@ namespace industrial_extrinsic_cal
 	BOOST_FOREACH( shared_ptr<Camera> camera, current_scene.cameras_in_scene_)
 	  {
 	    // wait until observation is done
+	    ROS_ERROR("waiting for camera observations to finish");
 	    while (!camera->camera_observer_->observationsDone()) ;
-
+	    ROS_ERROR("observations done");
 	    camera_name = camera->camera_name_;
 	    if (camera->isMoving())
 	      {
@@ -718,6 +941,7 @@ namespace industrial_extrinsic_cal
 	    // Get the observations from this camera whose P_BLOCKs are intrinsics and extrinsics
 	    CameraObservations camera_observations;
 	    int number_returned;
+	    ROS_ERROR("extracting observations");
 	    number_returned = camera->getObservations(camera_observations);
 
 	    ROS_DEBUG_STREAM("Processing " << camera_observations.size() << " Observations");
@@ -728,7 +952,7 @@ namespace industrial_extrinsic_cal
 		target_type = observation.target->target_type_;
 		cost_type = observation.cost_type;
 		double circle_dia=0.0;
-		if(target_type == pattern_options::CircleGrid){
+		if(target_type == pattern_options::CircleGrid || target_type == pattern_options::ModifiedCircleGrid){
 		  circle_dia = observation.target->circle_grid_parameters_.circle_diameter;
 		}
 		int pnt_id = observation.point_id;
@@ -761,12 +985,16 @@ namespace industrial_extrinsic_cal
 
   bool CalibrationJob::runOptimization()
   {
-    int total_observations =0;
+    // problem is declared here because we can't clear it as far as I can tell from the ceres documentation
+    if(problem_ != NULL) delete(problem_); 
+    problem_ = new ceres::Problem; /*!< This is the object which solves non-linear optimization problems */
+
+    total_observations_ =0;
     for(int i=0;i<observation_data_point_list_.size();i++){
-      total_observations += observation_data_point_list_[i].items_.size();
+      total_observations_ += observation_data_point_list_[i].items_.size();
     }
-    if(total_observations == 0){ // TODO really need more than number of parameters being computed
-      ROS_ERROR("Too few observations: %d",total_observations);
+    if(total_observations_ == 0){ // TODO really need more than number of parameters being computed
+      ROS_ERROR("Too few observations: %d",total_observations_);
       return(false);
     }
     
@@ -827,7 +1055,7 @@ namespace industrial_extrinsic_cal
 		target_pose.setAngleAxis(target_pose_params[0],target_pose_params[1], target_pose_params[2]);
 		target_pose.setOrigin(target_pose_params[3],target_pose_params[4], target_pose_params[5]);
 		point_position = ODP.point_position_;
-		bool point_zero=false;
+		bool point_zero=false; // Set true to enable some debugging
 		/*
 		if(point.x == 0.0 && point.y == 0.0 && point.z == 0.0){
 		  point_zero=true;
@@ -843,7 +1071,7 @@ namespace industrial_extrinsic_cal
 		  {
 		    CostFunction* cost_function =
 		      CameraReprjErrorWithDistortion::Create(image_x, image_y);
-		    problem_.AddResidualBlock(cost_function, NULL , extrinsics, intrinsics, point.pb);
+		    problem_->AddResidualBlock(cost_function, NULL , extrinsics, intrinsics, point.pb);
 		  }
 		  break;
 		case cost_functions::CameraReprjErrorWithDistortionPK:
@@ -851,7 +1079,7 @@ namespace industrial_extrinsic_cal
 		    CostFunction* cost_function =
 		      CameraReprjErrorWithDistortionPK::Create(image_x, image_y, 
 							       point);
-		    problem_.AddResidualBlock(cost_function, NULL , extrinsics, intrinsics);
+		    problem_->AddResidualBlock(cost_function, NULL , extrinsics, intrinsics);
 		  }
 		  break;
 		case cost_functions::CameraReprjError:
@@ -860,7 +1088,7 @@ namespace industrial_extrinsic_cal
 		      CameraReprjError::Create(image_x, image_y, 
 					       focal_length_x, focal_length_y,
 					       center_x, center_y);
-		    problem_.AddResidualBlock(cost_function, NULL , extrinsics, point.pb);
+		    problem_->AddResidualBlock(cost_function, NULL , extrinsics, point.pb);
 		  }
 		  break;
 		case cost_functions::CameraReprjErrorPK:
@@ -870,7 +1098,7 @@ namespace industrial_extrinsic_cal
 						 focal_length_x, focal_length_y,
 						 center_x, center_y,
 						 point);
-		    problem_.AddResidualBlock(cost_function, NULL , extrinsics);
+		    problem_->AddResidualBlock(cost_function, NULL , extrinsics);
 		  }
 		  break;
 		case cost_functions::TargetCameraReprjError:
@@ -880,7 +1108,7 @@ namespace industrial_extrinsic_cal
 						     focal_length_x, focal_length_y,
 						     center_x, center_y);
 
-		    problem_.AddResidualBlock(cost_function, NULL , extrinsics, target_pose_params, point.pb);
+		    problem_->AddResidualBlock(cost_function, NULL , extrinsics, target_pose_params, point.pb);
 		  }
 		  break;
 		case cost_functions::TargetCameraReprjErrorPK:
@@ -893,7 +1121,7 @@ namespace industrial_extrinsic_cal
 						       center_y,
 						       point);
 		    // add it as a residual using parameter blocks
-		    problem_.AddResidualBlock(cost_function, NULL , extrinsics, target_pose_params);
+		    problem_->AddResidualBlock(cost_function, NULL , extrinsics, target_pose_params);
 		  }
 		  break;
 		case cost_functions::LinkTargetCameraReprjError:
@@ -905,7 +1133,7 @@ namespace industrial_extrinsic_cal
 							 center_x,
 							 center_y,
 							 camera_mounting_pose);
-		      problem_.AddResidualBlock(cost_function, NULL , extrinsics, target_pose_params, point.pb);
+		      problem_->AddResidualBlock(cost_function, NULL , extrinsics, target_pose_params, point.pb);
 		  }
 		  break;
 		case cost_functions::LinkTargetCameraReprjErrorPK:
@@ -918,7 +1146,7 @@ namespace industrial_extrinsic_cal
 							   center_y,
 							   camera_mounting_pose,
 							   point);
-		    problem_.AddResidualBlock(cost_function, NULL , extrinsics, target_pose_params);
+		    problem_->AddResidualBlock(cost_function, NULL , extrinsics, target_pose_params);
 		  }
 		  break;
 		case cost_functions::LinkCameraTargetReprjError:
@@ -930,7 +1158,7 @@ namespace industrial_extrinsic_cal
 							 center_x,
 							 center_y,
 							 camera_mounting_pose);
-		    problem_.AddResidualBlock(cost_function, NULL , extrinsics, target_pose_params, point.pb);
+		    problem_->AddResidualBlock(cost_function, NULL , extrinsics, target_pose_params, point.pb);
 		  }
 		  break;
 		case cost_functions::LinkCameraTargetReprjErrorPK:
@@ -944,14 +1172,14 @@ namespace industrial_extrinsic_cal
 							     camera_mounting_pose,
 							     point);
 		      
-		      problem_.AddResidualBlock(cost_function, NULL , extrinsics, target_pose_params);
+		      problem_->AddResidualBlock(cost_function, NULL , extrinsics, target_pose_params);
 		    }
 		    break;
 		case cost_functions::CircleCameraReprjErrorWithDistortion:
 		  {
 		    CostFunction* cost_function =
 		      CircleCameraReprjErrorWithDistortion::Create(image_x, image_y, circle_dia);
-		    problem_.AddResidualBlock(cost_function, NULL , extrinsics, intrinsics, point.pb);
+		    problem_->AddResidualBlock(cost_function, NULL , extrinsics, intrinsics, point.pb);
 		  }
 		  break;
 		case cost_functions::CircleCameraReprjErrorWithDistortionPK:
@@ -960,7 +1188,7 @@ namespace industrial_extrinsic_cal
 		      CircleCameraReprjErrorWithDistortionPK::Create(image_x, image_y,
 								     circle_dia,
 								     point);
-		    problem_.AddResidualBlock(cost_function, NULL , extrinsics, intrinsics, point.pb);
+		    problem_->AddResidualBlock(cost_function, NULL , extrinsics, intrinsics, point.pb);
 		  }
 		  break;
 		case cost_functions::CircleCameraReprjError:
@@ -972,7 +1200,7 @@ namespace industrial_extrinsic_cal
 						     focal_length_y,
 						     center_x,
 						     center_y);
-		    problem_.AddResidualBlock(cost_function, NULL , extrinsics, point.pb);
+		    problem_->AddResidualBlock(cost_function, NULL , extrinsics, point.pb);
 		  }
 		  break;
 		case cost_functions::CircleCameraReprjErrorPK:
@@ -985,7 +1213,7 @@ namespace industrial_extrinsic_cal
 						       center_x,
 						       center_y,
 						       point);
-		    problem_.AddResidualBlock(cost_function, NULL , extrinsics);
+		    problem_->AddResidualBlock(cost_function, NULL , extrinsics);
 		  }
 		  break;
 		case cost_functions::CircleTargetCameraReprjErrorWithDistortion:
@@ -993,7 +1221,7 @@ namespace industrial_extrinsic_cal
 		    CostFunction* cost_function =
 		      CircleTargetCameraReprjErrorWithDistortion::Create(image_x, image_y,
 									 circle_dia);
-		    problem_.AddResidualBlock(cost_function, NULL , extrinsics, intrinsics, target_pose_params, point.pb);
+		    problem_->AddResidualBlock(cost_function, NULL , extrinsics, intrinsics, point.pb);
 		  }
 		  break;
 		case cost_functions::CircleTargetCameraReprjErrorWithDistortionPK:
@@ -1002,19 +1230,25 @@ namespace industrial_extrinsic_cal
 		      CircleTargetCameraReprjErrorWithDistortionPK::Create(image_x, image_y, 
 									   circle_dia,
 									   point);
-		    problem_.AddResidualBlock(cost_function, NULL , extrinsics, intrinsics, target_pose_params);
+		    problem_->AddResidualBlock(cost_function, NULL , extrinsics, intrinsics, target_pose_params);
 		  }
 		  break;
-		case cost_functions::CircleTargetCameraReprjError:
+		case cost_functions::FixedCircleTargetCameraReprjErrorWithDistortionPK:
 		  {
 		    CostFunction* cost_function =
-		      CircleTargetCameraReprjError::Create(image_x, image_y, 
-							   circle_dia,
-							   focal_length_x,
-							   focal_length_y,
-							   center_x,
-							   center_y);
-		    problem_.AddResidualBlock(cost_function, NULL , extrinsics, target_pose_params, point.pb);
+		      FixedCircleTargetCameraReprjErrorWithDistortionPK::Create(image_x, image_y, 
+									   circle_dia,
+									   point);
+		    problem_->AddResidualBlock(cost_function, NULL , extrinsics, intrinsics, target_pose_params);
+		  }
+		  break;
+		case cost_functions::SimpleCircleTargetCameraReprjErrorWithDistortionPK:
+		  {
+		    CostFunction* cost_function =
+		      SimpleCircleTargetCameraReprjErrorWithDistortionPK::Create(image_x, image_y, 
+									   circle_dia,
+									   point);
+		    problem_->AddResidualBlock(cost_function, NULL , extrinsics, intrinsics);
 		  }
 		  break;
 		case cost_functions::CircleTargetCameraReprjErrorPK:
@@ -1027,7 +1261,7 @@ namespace industrial_extrinsic_cal
 							     center_x,
 							     center_y,
 							     point);
-		    problem_.AddResidualBlock(cost_function, NULL , extrinsics, target_pose_params);
+		    problem_->AddResidualBlock(cost_function, NULL , extrinsics, target_pose_params);
 		  }
 		  break;
 		case cost_functions::LinkCircleTargetCameraReprjError:
@@ -1040,7 +1274,7 @@ namespace industrial_extrinsic_cal
 							       center_x,
 							       center_y,
 							       camera_mounting_pose);
-		    problem_.AddResidualBlock(cost_function, NULL , extrinsics, target_pose_params, point.pb);
+		    problem_->AddResidualBlock(cost_function, NULL , extrinsics, target_pose_params, point.pb);
 		  }
 		  break;
 		case cost_functions::LinkCircleTargetCameraReprjErrorPK:
@@ -1054,7 +1288,7 @@ namespace industrial_extrinsic_cal
 								 center_y,
 								 camera_mounting_pose,
 								 point);
-		    problem_.AddResidualBlock(cost_function, NULL , extrinsics, target_pose_params);
+		    problem_->AddResidualBlock(cost_function, NULL , extrinsics, target_pose_params);
 		  }
 		  break;
 		case cost_functions::LinkCameraCircleTargetReprjError:
@@ -1067,7 +1301,7 @@ namespace industrial_extrinsic_cal
 							       center_x,
 							       center_y,
 							       camera_mounting_pose);
-		    problem_.AddResidualBlock(cost_function, NULL , extrinsics, target_pose_params, point.pb);
+		    problem_->AddResidualBlock(cost_function, NULL , extrinsics, target_pose_params, point.pb);
 		  }
 		  break;
 		case cost_functions::LinkCameraCircleTargetReprjErrorPK:
@@ -1081,7 +1315,7 @@ namespace industrial_extrinsic_cal
 								 center_y,
 								 camera_mounting_pose,
 								 point);
-		    problem_.AddResidualBlock(cost_function, NULL , extrinsics, target_pose_params);
+		    problem_->AddResidualBlock(cost_function, NULL , extrinsics, target_pose_params);
 		    if(point_zero){
 		      double residual[2];
 		      double *params[2];
@@ -1115,10 +1349,11 @@ namespace industrial_extrinsic_cal
 								  target_pose,
 								  camera_mounting_pose,
 								  point);
-		    problem_.AddResidualBlock(cost_function, NULL , extrinsics);
+		    problem_->AddResidualBlock(cost_function, NULL , extrinsics);
 		    if(point_zero){
 		      double residual[2];
-		      double *params[2];
+		      double *params[1];
+		      showPose(extrinsics,"extrinsics");
 		      params[0] = &extrinsics[0];
 		      cost_function->Evaluate(params, residual, NULL);
 		      ROS_ERROR("Initial residual %6.3lf %6.3lf ix,iy = %6.3lf %6.3lf px,py = %6.3lf %6.3lf", residual[0], residual[1],image_x, image_y, residual[0]+image_x, residual[0]+image_y);
@@ -1147,20 +1382,133 @@ namespace industrial_extrinsic_cal
 	      }//for each observation
 	  }//for each camera
       }//for each scene
-  ROS_INFO("total observations: %d ",total_observations);
+  ROS_INFO("total observations: %d ",total_observations_);
   
   // Make Ceres automatically detect the bundle structure. Note that the
   // standard solver, SPARSE_NORMAL_CHOLESKY, also works fine but it is slower
   // for standard bundle adjustment problems.
+
   ceres::Solver::Options options;
-  ceres::Solver::Summary summary;
   options.linear_solver_type = ceres::DENSE_SCHUR;
   options.minimizer_progress_to_stdout = true;
   options.max_num_iterations = 1000;
-  ceres::Solve(options, &problem_, &summary);
-  ROS_INFO("PROBLEM SOLVED");
-  return true;
-}//end runOptimization
+  ceres::Solve(options, problem_, &ceres_summary_);
+
+  if(ceres_summary_.termination_type == ceres::USER_SUCCESS
+     || ceres_summary_.termination_type == ceres::FUNCTION_TOLERANCE
+     || ceres_summary_.termination_type == ceres::GRADIENT_TOLERANCE
+     || ceres_summary_.termination_type == ceres::PARAMETER_TOLERANCE
+     ){
+      ROS_INFO("Problem Solved");
+      double error_per_observation = ceres_summary_.initial_cost/total_observations_;
+
+      return true;
+    }
+    else{
+      ROS_ERROR("Problem Not Solved termination type = %d success = %d", ceres_summary_.termination_type, ceres::USER_SUCCESS);
+    }
+
+
+    
+  }//end runOptimization
+
+ bool CalibrationJob::computeCovariance(std::vector<CovarianceVariableRequest> &variables, std::string &covariance_file_name)
+  {
+    FILE *fp;
+    if((fp= fopen(covariance_file_name.c_str(), "w") ) != NULL){
+      ceres::Covariance::Options covariance_options;
+      covariance_options.algorithm_type = ceres::DENSE_SVD;
+      ceres::Covariance covariance(covariance_options);
+      std::vector<const double*> covariance_blocks;
+      std::vector<int> block_sizes;
+      std::vector<std::string> block_names;
+      std::vector< std::pair< const double*, const double*> > covariance_pairs;
+
+      BOOST_FOREACH(CovarianceVariableRequest req, variables){
+	P_BLOCK intrinsics, extrinsics, pose_params;
+	switch(req.request_type){
+	case StaticCameraIntrinsicParams:
+	    intrinsics = ceres_blocks_.getStaticCameraParameterBlockIntrinsics(req.object_name.c_str());
+	    covariance_blocks.push_back(intrinsics);
+	    block_sizes.push_back(9);
+	    block_names.push_back(req.object_name.c_str());
+	    break;
+	case StaticCameraExtrinsicParams:
+	  extrinsics = ceres_blocks_.getStaticCameraParameterBlockExtrinsics(req.object_name.c_str());
+	  covariance_blocks.push_back(extrinsics);
+	  block_sizes.push_back(6);
+	  block_names.push_back(req.object_name.c_str());
+	  break;
+	case MovingCameraIntrinsicParams:
+	  intrinsics = ceres_blocks_.getMovingCameraParameterBlockIntrinsics(req.object_name.c_str());
+	  covariance_blocks.push_back(intrinsics);
+	  block_sizes.push_back(9);
+	  block_names.push_back(req.object_name.c_str());
+	  break;
+	case MovingCameraExtrinsicParams:
+	  extrinsics = ceres_blocks_.getMovingCameraParameterBlockExtrinsics(req.object_name.c_str(), req.scene_id);
+	  covariance_blocks.push_back(extrinsics);
+	  block_sizes.push_back(6);
+	  block_names.push_back(req.object_name.c_str());
+	  break;
+	case StaticTargetPoseParams:
+	  pose_params = ceres_blocks_.getStaticTargetPoseParameterBlock(req.object_name.c_str());
+	  covariance_blocks.push_back(pose_params);
+	  block_sizes.push_back(6);
+	  block_names.push_back(req.object_name.c_str());
+	  break;
+	case MovingTargetPoseParams:
+	  pose_params = ceres_blocks_.getMovingTargetPoseParameterBlock(req.object_name.c_str(), req.scene_id);
+	  covariance_blocks.push_back(pose_params);
+	  block_sizes.push_back(6);
+	  block_names.push_back(req.object_name.c_str());
+	  break;
+	default:
+	  ROS_ERROR("unknown type of request");
+	  return(false);
+	  break;
+	}// end of switch for request type
+      }// end of for each request
+
+      // create pairs from every combination of blocks in request
+      for(int i=0; i<(int)covariance_blocks.size(); i++){
+	for(int j=i; j<(int)covariance_blocks.size(); j++){
+	  covariance_pairs.push_back(std::make_pair(covariance_blocks[i],covariance_blocks[j]) );
+	}
+      }
+      covariance.Compute(covariance_pairs, problem_);
+
+      fprintf(fp,"covariance blocks:\n");
+      for(int i=0; i<(int)covariance_blocks.size(); i++){
+	for(int j=i; j<(int)covariance_blocks.size(); j++){
+	  fprintf(fp,"Cov[%s, %s]\n", block_names[i].c_str(), block_names[j].c_str());
+	  int N = block_sizes[i];
+	  int M = block_sizes[j];
+	  double ij_cov_block[N*M];
+	  covariance.GetCovarianceBlock(covariance_blocks[i], covariance_blocks[j], ij_cov_block);
+	  for(int q=0; q<N;i++){
+	    for(int k=0;k<M;k++){
+	      double sigma_i = sqrt(ij_cov_block[q*N+q]);
+	      double sigma_j = sqrt(ij_cov_block[k*N+k]);
+	      if(q==k){
+		fprintf(fp,"%6.3f ", sigma_i);
+	      }
+	      else{
+		fprintf(fp,"%6.3lf ", ij_cov_block[q*N + k]/(sigma_i * sigma_j));
+	      }
+	    }// end of k loop
+	    fprintf(fp,"\n");
+	  }// end of q loop
+	}// end of j loop
+      }// end of i loop
+      fclose(fp);
+    }// end of if file opens
+    else{
+      ROS_ERROR("could not open covariance file %s", covariance_file_name.c_str());
+      return(false);
+    }
+    return(true);
+  } // end computeCovariance
 
   bool CalibrationJob::store()
   {
@@ -1185,5 +1533,22 @@ namespace industrial_extrinsic_cal
   void CalibrationJob::pushTransforms()
   {
     ceres_blocks_.pushTransforms();
+  }
+  double CalibrationJob::finalCostPerObservation()
+  {
+    if(!solved_){
+      ROS_ERROR("Can't call costPerObservation prior to solving");
+      return(-1.0);
+    }
+    return(ceres_summary_.final_cost/total_observations_);
+  }
+
+  double CalibrationJob::initialCostPerObservation()
+  {
+    if(!solved_){
+      ROS_ERROR("Can't call costPerObservation prior to solving");
+      return(-1.0);
+    }
+    return(ceres_summary_.initial_cost/total_observations_);
   }
 }//end namespace industrial_extrinsic_cal
