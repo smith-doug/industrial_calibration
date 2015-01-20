@@ -433,14 +433,18 @@ namespace industrial_extrinsic_cal
 	      case pattern_options::Chessboard:
 		temp_target->checker_board_parameters_.pattern_rows = this_target["target_rows"].as<int>();
 		temp_target->checker_board_parameters_.pattern_cols = this_target["target_cols"].as<int>();
-		ROS_DEBUG_STREAM("TargetRows: "<<temp_target->checker_board_parameters_.pattern_rows);
 		break;
 	      case pattern_options::CircleGrid:
 		temp_target->circle_grid_parameters_.pattern_rows = this_target["target_rows"].as<int>();
 		temp_target->circle_grid_parameters_.pattern_cols = this_target["target_cols"].as<int>();
 		temp_target->circle_grid_parameters_.circle_diameter = this_target["circle_dia"].as<double>();
 		temp_target->circle_grid_parameters_.is_symmetric=true;
-		ROS_DEBUG_STREAM("TargetRows: "<<temp_target->circle_grid_parameters_.pattern_rows);
+		break;
+	      case pattern_options::ModifiedCircleGrid:
+		temp_target->circle_grid_parameters_.pattern_rows = this_target["target_rows"].as<int>();
+		temp_target->circle_grid_parameters_.pattern_cols = this_target["target_cols"].as<int>();
+		temp_target->circle_grid_parameters_.circle_diameter = this_target["circle_dia"].as<double>();
+		temp_target->circle_grid_parameters_.is_symmetric=true;
 		break;
 	      default:
 		ROS_ERROR_STREAM("target_type does not correlate to a known pattern option (Chessboard or CircleGrid)");
