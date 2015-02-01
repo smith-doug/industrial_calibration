@@ -24,6 +24,7 @@
 #include <ros/package.h>
 #include <ros/console.h>
 #include <target_finder/target_locater.h> 
+#include <tf/transform_broadcaster.h>
 
 using std::string;
 using std::vector;
@@ -35,6 +36,7 @@ public:
   {
     client_ = nh_.serviceClient<target_finder::target_locater>("TargetLocateService");
     setRequest();
+
   }
   bool callTheService();
   void copyResponseToRequest();
@@ -43,6 +45,7 @@ private:
   ros::NodeHandle nh_;
   ros::ServiceClient client_;
   target_finder::target_locater srv_;
+  tf::TransformBroadcaster tf_broadcaster_;
 };
 
 void callService::copyResponseToRequest()
@@ -59,15 +62,23 @@ void callService::copyResponseToRequest()
 bool callService::callTheService()
 {
   if(client_.call(srv_)){
+    double x,y,z,qx,qy,qz,qw;
+    x = srv_.response.final_pose.position.x;
+    y = srv_.response.final_pose.position.y;
+    z = srv_.response.final_pose.position.z;
+    qx =  srv_.response.final_pose.orientation.x;
+    qy =  srv_.response.final_pose.orientation.y;
+    qz =  srv_.response.final_pose.orientation.z;
+    qw =  srv_.response.final_pose.orientation.w;
     ROS_INFO("Pose: tx= %5.3lf  %5.3lf  %5.3lf quat= %5.3lf  %5.3lf  %5.3lf %5.3lf, cost= %5.3lf",
-	     srv_.response.final_pose.position.x,
-	     srv_.response.final_pose.position.y,
-	     srv_.response.final_pose.position.z,
-	     srv_.response.final_pose.orientation.x,
-	     srv_.response.final_pose.orientation.y,
-	     srv_.response.final_pose.orientation.z,
-	     srv_.response.final_pose.orientation.w,
+	     x,y,z,qx,qy,qz,qw,
 	     srv_.response.final_cost_per_observation);
+    tf::Transform camera_to_target;
+    tf::Quaternion quat(qx,qy,qz,qw);
+    camera_to_target.setOrigin(tf::Vector3(x,y,z));
+    camera_to_target.setRotation(quat);
+    tf::StampedTransform stf(camera_to_target, ros::Time::now(), "asus_rgb_optical_frame", "target_frame");
+    tf_broadcaster_.sendTransform(stf);
     return(true);
   }
   ROS_ERROR("Target Location Failure");
@@ -82,10 +93,10 @@ void callService::setRequest()
     srv_.request.roi.width = 350;
     srv_.request.roi.height = 330;
   */
-    srv_.request.roi.x_offset =200;
-    srv_.request.roi.y_offset =150;
-    srv_.request.roi.width = 150;
-    srv_.request.roi.height = 150;
+    srv_.request.roi.x_offset =0;
+    srv_.request.roi.y_offset =0;
+    srv_.request.roi.width = 640;
+    srv_.request.roi.height = 480;
     srv_.request.initial_pose.position.x = 0.0;
     srv_.request.initial_pose.position.y =.01;
     srv_.request.initial_pose.position.z =0.1;

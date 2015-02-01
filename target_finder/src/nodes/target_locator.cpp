@@ -193,8 +193,8 @@ void TargetLocatorService::init_target(int rows, int cols, double circle_dia, do
   for(int i=0; i<rows; i++){
     for(int j=0; j<cols; j++){
       Point3d point;
-      point.x = (rows -1 -i)*spacing;
-      point.y = (cols -1 -j)*spacing;
+      point.x = j*spacing;
+      point.y = (rows -1 -i)*spacing;
       point.z = 0.0;
       target_->pts_.push_back(point);
     }
