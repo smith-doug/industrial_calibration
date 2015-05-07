@@ -989,7 +989,7 @@ namespace industrial_extrinsic_cal
 
     total_observations_ =0;
     for(int i=0;i<observation_data_point_list_.size();i++){
-      total_observations += observation_data_point_list_[i].items_.size();
+      total_observations_ += observation_data_point_list_[i].items_.size();
       std::stringstream observations_ss;
       for (int pntIdx = 0; pntIdx < observation_data_point_list_[i].items_.size(); pntIdx++) {
         const ObservationDataPoint& odp = observation_data_point_list_[i].items_[pntIdx];
