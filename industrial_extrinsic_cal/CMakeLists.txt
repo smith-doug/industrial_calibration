@@ -13,16 +13,17 @@ IF (OPENCV_FOUND)
 ENDIF (OPENCV_FOUND)
 
 # Ceres
-FIND_PACKAGE(Ceres REQUIRED)
-IF (CERES_FOUND)
-  MESSAGE("-- Found Ceres version ${CERES_VERSION}: ${CERES_INCLUDE_DIRS}")
-ENDIF (CERES_FOUND)
-
 # Eigen
 #FIND_PACKAGE(Eigen REQUIRED)
 #IF (EIGEN_FOUND)
 #  MESSAGE("-- Found Eigen version ${EIGEN_VERSION}: ${EIGEN_INCLUDE_DIRS}")
 #ENDIF (EIGEN_FOUND)
+
+FIND_PACKAGE(Ceres REQUIRED PATHS )
+IF (CERES_FOUND)
+  MESSAGE("-- Found Ceres version ${CERES_VERSION}: ${CERES_INCLUDE_DIRS}")
+ENDIF (CERES_FOUND)
+
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -118,7 +119,7 @@ add_library(industrial_extrinsic_cal
 )
 
 ## This insures the creation of headers for all ros messages, services and actions 
-add_dependencies(industrial_extrinsic_cal ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
+add_dependencies(industrial_extrinsic_cal ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS}  ${CERES_LIBRARIES})
 
 ## Declare a cpp executable
 add_executable(mono_ex_cal src/nodes/mono_ex_cal.cpp)
@@ -140,7 +141,7 @@ add_dependencies(camera_observer_scene_trigger ${PROJECT_NAME}_generate_messages
 # add_dependencies(industrial_extrinsic_cal_node industrial_extrinsic_cal_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(industrial_extrinsic_cal yaml-cpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+target_link_libraries(industrial_extrinsic_cal yaml-cpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${CERES_LIBRARIES})
 target_link_libraries(mono_ex_cal ${CERES_LIBRARIES} ${catkin_LIBRARIES} )
 #target_link_libraries(test_obs industrial_extrinsic_cal yaml-cpp ${catkin_LIBRARIES} ${CERES_LIBRARIES})
 target_link_libraries(service_node industrial_extrinsic_cal ${CERES_LIBRARIES} )
