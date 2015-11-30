@@ -133,7 +133,7 @@ namespace industrial_extrinsic_cal
      *   @param qz quaternion z value
      *   @param qw quaternion w value
     */
-    void getQuaternion(double &qx,  double &qy, double &qz, double &qw);
+    void getQuaternion(double &qx,  double &qy, double &qz, double &qw) const;
 
     /** @brief get the inverse of the pose_*/
     Pose6d getInverse() const;
