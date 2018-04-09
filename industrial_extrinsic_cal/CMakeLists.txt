@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   std_msgs
   std_srvs
+  pcl_ros
   tf
   tf_conversions
   dynamic_reconfigure
@@ -110,6 +111,7 @@ catkin_package(
     roslib
     roslint
     sensor_msgs
+    pcl_ros
     std_msgs
     std_srvs
     tf
@@ -172,6 +174,7 @@ add_executable(ros_robot_trigger_action_service src/nodes/ros_robot_scene_trigge
 add_executable(service_node                     src/nodes/calibration_service.cpp)
 add_executable(trigger_service                  src/nodes/ros_scene_trigger_server.cpp)
 add_executable(target_display                   src/nodes/target_display_node.cpp)
+add_executable(camera_info_pub                  src/nodes/camera_info_publisher.cpp)
 
 add_dependencies(camera_observer_scene_trigger    ${catkin_EXPORTED_TARGETS} ${industrial_extrinsic_cal_EXPORTED_TARGETS})
 add_dependencies(mutable_joint_state_publisher    ${catkin_EXPORTED_TARGETS} ${industrial_extrinsic_cal_EXPORTED_TARGETS})
@@ -179,6 +182,7 @@ add_dependencies(ros_robot_trigger_action_service ${catkin_EXPORTED_TARGETS} ${i
 add_dependencies(service_node                     ${catkin_EXPORTED_TARGETS} ${industrial_extrinsic_cal_EXPORTED_TARGETS})
 add_dependencies(trigger_service                  ${catkin_EXPORTED_TARGETS} ${industrial_extrinsic_cal_EXPORTED_TARGETS})
 add_dependencies(target_display                   ${catkin_EXPORTED_TARGETS} ${industrial_extrinsic_cal_EXPORTED_TARGETS})
+add_dependencies(camera_info_pub                  ${catkin_EXPORTED_TARGETS} ${industrial_extrinsic_cal_EXPORTED_TARGETS})
 
 target_link_libraries(camera_observer_scene_trigger industrial_extrinsic_cal ${catkin_LIBRARIES} ${yaml_cpp_LIBRARY} ${CERES_LIBRARIES})
 target_link_libraries(manual_calt_adjust industrial_extrinsic_cal ${catkin_LIBRARIES})
@@ -187,6 +191,7 @@ target_link_libraries(nist_analysis industrial_extrinsic_cal ${catkin_LIBRARIES}
 target_link_libraries(ros_robot_trigger_action_service ${catkin_LIBRARIES})
 target_link_libraries(service_node industrial_extrinsic_cal ${CERES_LIBRARIES})
 target_link_libraries(target_display industrial_extrinsic_cal ${CERES_LIBRARIES})
+target_link_libraries(camera_info_pub industrial_extrinsic_cal ${CERES_LIBRARIES})
 #target_link_libraries(test_obs industrial_extrinsic_cal ${yaml_cpp_LIBRARY} ${catkin_LIBRARIES} ${CERES_LIBRARIES})
 target_link_libraries(trigger_service ${catkin_LIBRARIES})
 
@@ -202,6 +207,7 @@ install(
     service_node
     trigger_service
     target_display
+    camera_info_pub
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

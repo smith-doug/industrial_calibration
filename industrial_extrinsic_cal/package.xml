@@ -34,6 +34,7 @@
   <depend>tf_conversions</depend>
   <depend>yaml-cpp</depend>
   <depend>ceres-solver</depend>
+  <depend>pcl_ros</depend>
 
   <build_depend>boost</build_depend>
   <build_depend>message_generation</build_depend>
