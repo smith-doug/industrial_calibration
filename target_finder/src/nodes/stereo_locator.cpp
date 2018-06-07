@@ -29,8 +29,8 @@
 #include <industrial_extrinsic_cal/ros_camera_observer.h>
 #include <industrial_extrinsic_cal/basic_types.h>
 #include <industrial_extrinsic_cal/camera_definition.h>
-#include <industrial_extrinsic_cal/ceres_costs_utils.h> 
-#include <industrial_extrinsic_cal/ceres_costs_utils.hpp> 
+#include <industrial_extrinsic_cal/ceres_costs_utils.h>
+#include <industrial_extrinsic_cal/ceres_costs_utils.hpp>
 #include <target_finder/stereo_locator.h> // service call definintion
 #include "ceres/ceres.h"
 #include "ceres/rotation.h"
@@ -51,7 +51,7 @@ using industrial_extrinsic_cal::Camera;
 using industrial_extrinsic_cal::CameraParameters;
 using industrial_extrinsic_cal::NoWaitTrigger;
 
-class StereoLocatorService 
+class StereoLocatorService
 {
 public:
   StereoLocatorService(ros::NodeHandle nh);
@@ -100,7 +100,7 @@ private:
 
 StereoLocatorService::StereoLocatorService(ros::NodeHandle nh)
 {
-  
+
   nh_ = nh;
   ros::NodeHandle pnh("~");
   allowable_cost_per_observation_ = 1.0;
@@ -152,7 +152,7 @@ StereoLocatorService::StereoLocatorService(ros::NodeHandle nh)
 
   initMCircleTarget(target_rows_, target_cols_, circle_diameter_, circle_spacing_);
 
-  
+
   bool use_quaternion = false;
   if(pnh.getParam( "qx", qx_))
   {
@@ -299,7 +299,7 @@ StereoLocatorService::StereoLocatorService(ros::NodeHandle nh)
 
   // call this service to find out where the target is with respect to the left camera frame
   rail_cal_server_ = nh_.advertiseService( "StereoLocatorService", &StereoLocatorService::getPoseCallBack, this);
-  
+
 }
 
 // moves the stage through a series of positions and solves for the tranform between the two cameras
@@ -316,7 +316,7 @@ bool StereoLocatorService::getPoseCallBack( target_finder::stereo_locator::Reque
   tf::StampedTransform transform;
   try{
     listener_.lookupTransform(left_camera_optical_frame_, right_camera_optical_frame_, ros::Time(0), transform);
-			      
+
   }
   catch (tf::TransformException ex){
     ROS_ERROR("%s",ex.what());
@@ -327,7 +327,7 @@ bool StereoLocatorService::getPoseCallBack( target_finder::stereo_locator::Reque
   LCtoRC.setOrigin(transform.getOrigin().x(), transform.getOrigin().y(), transform.getOrigin().z());
   LCtoRC.setBasis(transform.getBasis());
   LCtoRC.show("LCtoRC");
-  
+
   left_camera_->camera_observer_->clearObservations();
   right_camera_->camera_observer_->clearObservations();
 
@@ -339,7 +339,7 @@ bool StereoLocatorService::getPoseCallBack( target_finder::stereo_locator::Reque
 
   left_camera_->camera_observer_->triggerCamera();
   right_camera_->camera_observer_->triggerCamera();
-  
+
 
   // wait until the observations are done
   while (!left_camera_->camera_observer_->observationsDone() && !right_camera_->camera_observer_->observationsDone()) ;
@@ -376,7 +376,7 @@ bool StereoLocatorService::getPoseCallBack( target_finder::stereo_locator::Reque
     } // end target size matches observation number
     }// end if get observations successful
   }// end for each camera location
-  
+
   // set up and solve the problem
   Solver::Options options;
   Solver::Summary summary;
@@ -384,7 +384,8 @@ bool StereoLocatorService::getPoseCallBack( target_finder::stereo_locator::Reque
   options.minimizer_progress_to_stdout = true;
   options.max_num_iterations = 2000;
   ceres::Solve(options, &problem, &summary);
-  if(summary.termination_type != ceres::NO_CONVERGENCE){
+  if(summary.termination_type != ceres::NO_CONVERGENCE)
+  {
     double initial_cost = summary.initial_cost/(target_->num_points_*2);
     double final_cost = summary.final_cost/(target_->num_points_*2);
     ROS_INFO("Problem solved, initial cost = %lf, final cost = %lf", initial_cost, final_cost);
@@ -395,7 +396,7 @@ bool StereoLocatorService::getPoseCallBack( target_finder::stereo_locator::Reque
       res.target_pose.position.z = target_->pose_.z;
       res.final_cost_per_observation  = final_cost;
       target_->pose_.getQuaternion(res.target_pose.orientation.x,
-				   res.target_pose.orientation.y, 
+				   res.target_pose.orientation.y,
 				   res.target_pose.orientation.z,
 				   res.target_pose.orientation.w);
       return true;
@@ -403,8 +404,13 @@ bool StereoLocatorService::getPoseCallBack( target_finder::stereo_locator::Reque
     else{
       res.final_cost_per_observation  = final_cost;
       ROS_ERROR("allowable cost exceeded %f > %f", final_cost, req.allowable_cost_per_observation);
-      return(false);
+      return true;
     }
+  }
+  else
+  {
+    ROS_ERROR("Ceres failed to converge");
+    return true;
   }
 }
 
@@ -419,7 +425,7 @@ void StereoLocatorService::initMCircleTarget(int rows, int cols, double circle_d
   target_->circle_grid_parameters_.pattern_cols    = cols;
   target_->circle_grid_parameters_.circle_diameter = circle_dia;
   target_->circle_grid_parameters_.is_symmetric    = true;
-  target_->circle_grid_parameters_.spacing         = spacing; 
+  target_->circle_grid_parameters_.spacing         = spacing;
   target_->generatePoints();  // create a grid of points using the provided rows, cols, spacing and diameter
 }
 
