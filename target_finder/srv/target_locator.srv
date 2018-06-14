@@ -1,6 +1,8 @@
 float64 allowable_cost_per_observation
+sensor_msgs/Image image
 sensor_msgs/RegionOfInterest roi
 geometry_msgs/Pose initial_pose
 ---
+bool success
 float64 final_cost_per_observation
 geometry_msgs/Pose final_pose

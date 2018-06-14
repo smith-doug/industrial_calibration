@@ -61,6 +61,7 @@ private:
   int target_type_;
   int target_rows_;
   int target_cols_;
+  std::unique_ptr<ROSCameraObserver> camera_observer_;
 };
 
 TargetLocatorService::TargetLocatorService(ros::NodeHandle nh)
@@ -115,60 +116,70 @@ TargetLocatorService::TargetLocatorService(ros::NodeHandle nh)
     ROS_ERROR("Target type not supported, check your launch file, only 2, and 4 for MCircle, and Balls type targets");
   }
 
+  camera_observer_.reset(new ROSCameraObserver(image_topic_, camera_name_));
+
   std::string service_name;
-  if (!pnh.getParam("service_name", service_name))
-  {
-    service_name = "TargetLocateService";
+  camera_observer_->clearObservations();
+  camera_observer_->clearTargets();
+  if(!pnh.getParam("service_name", service_name)){
+    service_name = "find_target";
   }
   target_locate_server_ = nh_.advertiseService(service_name.c_str(), &TargetLocatorService::executeCallBack, this);
 }
 
 bool TargetLocatorService::executeCallBack(target_locator::Request& req, target_locator::Response& res)
 {
-  ros::NodeHandle nh;
-  CameraObservations camera_observations;
-
-  ROSCameraObserver camera_observer(image_topic_, camera_name_);
-
-  // get the focal length and optical center
-  double fx, fy, cx, cy;
-  double k1, k2, k3, p1, p2;  // unused
-  int height, width;          // unused
-  if (!camera_observer.pullCameraInfo(fx, fy, cx, cy, k1, k2, k3, p1, p2, width, height))
-  {
-    ROS_ERROR("could not access camera info");
-  }
-  camera_observer.clearObservations();
-  camera_observer.clearTargets();
-
   // set the roi to the requested
   Roi roi;
   roi.x_min = req.roi.x_offset;
   roi.y_min = req.roi.y_offset;
   roi.x_max = req.roi.x_offset + req.roi.width;
   roi.y_max = req.roi.y_offset + req.roi.height;
+  //ROS_INFO("Target ROI: [%i x %i, %i x %i]", roi.x_min, roi.x_max, roi.y_min, roi.y_max);
+
+  // get the focal length and optical center
+  double fx,fy,cx,cy;
+  double k1,k2,k3,p1,p2;// unused
+  int height, width; //unused
+  if (! camera_observer_->pullCameraInfo(fx, fy, cx, cy, k1, k2, k3, p1, p2, width, height))
+  {
+    ROS_ERROR("could not access camera info");
+    res.success = false;
+    return true;
+  }
+  //ROS_INFO("Got camera data: fx = %f, fy = %f, cx = %f, cy = %f", fx, fy, cx, cy);
 
   industrial_extrinsic_cal::Cost_function cost_type;
+  camera_observer_->clearTargets();
+  camera_observer_->addTarget(target_, roi, cost_type);
 
-  camera_observer.clearTargets();
-  camera_observer.clearObservations();
+  camera_observer_->clearObservations();
+  camera_observer_->setImage(req.image);
+  //camera_observer_->triggerCamera();
+  //while (!camera_observer_->observationsDone())
+  //{
+  //  ros::Duration(0.05).sleep();
+  //}
 
-  camera_observer.addTarget(target_, roi, cost_type);
-  camera_observer.triggerCamera();
-  while (!camera_observer.observationsDone())
-    ;
-  camera_observer.getObservations(camera_observations);
-  int num_observations = (int)camera_observations.size();
-  if (num_observations != target_rows_ * target_cols_)
-  {
-    ROS_ERROR("Target Locator could not find target %d", num_observations);
-    return (false);
+  CameraObservations camera_observations;
+  camera_observer_->getObservations(camera_observations);
+  int num_observations = (int) camera_observations.size();
+  if(num_observations != target_rows_* target_cols_){
+    ROS_ERROR("Target locator failed to find target");
+    res.success = false;
+    return true;
   }
 
   // set initial conditions
-  target_->pose_.setQuaternion(req.initial_pose.orientation.x, req.initial_pose.orientation.y,
-                               req.initial_pose.orientation.z, req.initial_pose.orientation.w);
-  target_->pose_.setOrigin(req.initial_pose.position.x, req.initial_pose.position.y, req.initial_pose.position.z);
+  target_->pose_.setQuaternion(
+      req.initial_pose.orientation.x,
+      req.initial_pose.orientation.y,
+      req.initial_pose.orientation.z,
+      req.initial_pose.orientation.w);
+  target_->pose_.setOrigin(
+      req.initial_pose.position.x,
+      req.initial_pose.position.y,
+      req.initial_pose.position.z);
 
   Problem problem;
   for (int i = 0; i < num_observations; i++)
@@ -196,16 +207,20 @@ bool TargetLocatorService::executeCallBack(target_locator::Request& req, target_
       res.final_pose.position.y = target_->pose_.y;
       res.final_pose.position.z = target_->pose_.z;
       res.final_cost_per_observation = error_per_observation;
-      target_->pose_.getQuaternion(res.final_pose.orientation.x, res.final_pose.orientation.y,
-                                   res.final_pose.orientation.z, res.final_pose.orientation.w);
-
+      target_->pose_.getQuaternion(
+          res.final_pose.orientation.x,
+          res.final_pose.orientation.y,
+          res.final_pose.orientation.z,
+          res.final_pose.orientation.w);
+      res.success = true;
       return true;
     }
     else
     {
       res.final_cost_per_observation = error_per_observation;
       ROS_ERROR("allowable cost exceeded %f > %f", error_per_observation, req.allowable_cost_per_observation);
-      return (false);
+      res.success = false;
+      return true;
     }
   }
 }
@@ -273,6 +288,5 @@ int main(int argc, char** argv)
   ros::NodeHandle node_handle;
   TargetLocatorService target_locator(node_handle);
   ros::spin();
-  ros::waitForShutdown();
   return 0;
 }
