@@ -104,6 +104,9 @@ public:
    */
   int getObservations(CameraObservations& camera_observations);
 
+  /** @brief Manually set the image to be processed by getObservations */
+  bool setImage(const sensor_msgs::Image &img_msg);
+
   /** @brief tells observer to process next incomming image to find the targets in list */
   void triggerCamera();
 

@@ -754,6 +754,34 @@ void ROSCameraObserver::triggerCamera()
   }
 }
 
+bool ROSCameraObserver::setImage(const sensor_msgs::Image &img_msg)
+{
+  try
+  {
+    input_bridge_ = cv_bridge::toCvCopy(img_msg, "mono8");
+    output_bridge_ = cv_bridge::toCvCopy(img_msg, "bgr8");
+    last_raw_image_ = output_bridge_->image.clone();
+    out_bridge_ = cv_bridge::toCvCopy(img_msg, "mono8");
+    new_image_collected_ = true;
+    ROS_DEBUG("height = %d width=%d step=%d encoding=%s",
+              img_msg.height,
+              img_msg.width,
+              img_msg.step,
+              img_msg.encoding.c_str());
+  }
+  catch (cv_bridge::Exception& ex)
+  {
+    ROS_ERROR("Failed to convert to OpenCV image type (height = %d width=%d step=%d encoding=%s)",
+      img_msg.height,
+      img_msg.width,
+      img_msg.step,
+      img_msg.encoding.c_str());
+    ROS_ERROR_STREAM("  cv_bridge exception: " << ex.what());
+    return false;
+  }
+  return true;
+}
+
 bool ROSCameraObserver::observationsDone()
 {
   if (!new_image_collected_)
