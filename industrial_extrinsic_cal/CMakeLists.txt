@@ -69,6 +69,7 @@ add_service_files(
     store_mutable_joint_states.srv
     user_accept.srv
     wrist_cal_srv_solve.srv
+    FileOp.srv
 )
 
 add_action_files(

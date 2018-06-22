@@ -728,7 +728,7 @@ void ROSCameraObserver::triggerCamera()
         ROS_ERROR("No image acquired on topic '%s'", image_topic_.c_str());
         break;
       }
-
+      last_image_msg_ = *recent_image;
       ROS_DEBUG("captured image in trigger");
       try
       {

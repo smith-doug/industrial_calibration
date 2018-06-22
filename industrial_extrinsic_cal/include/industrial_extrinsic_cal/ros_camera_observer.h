@@ -113,6 +113,9 @@ public:
   /** @brief tells when camera has completed its observations */
   bool observationsDone();
 
+  /** @brief get the most recent image from this camera*/
+  sensor_msgs::Image getLatestImage() {return last_image_msg_;};
+
 private:
   /**
    * @brief name of pattern being looked for
@@ -320,6 +323,7 @@ public:
 private:
   int image_number_;       /**< a counter of images recieved */
   cv::Mat last_raw_image_; /**< the image last received */
+  sensor_msgs::Image last_image_msg_; /**< the last image message recieved */
   bool use_circle_detector_;
   bool white_blobs_;
   ros::ServiceClient client_;
